@@ -1,0 +1,63 @@
+# LLM Wiki System Configuration
+
+# Wiki identity (customize per-project)
+wiki:
+  name: "My Wiki"
+  description: "Personal knowledge base"
+  language: "italian"   # "italian" | "english" — affects stopwords and LLM prompts
+  article_types: [concept, topic, condition, treatment, person, paper, guideline]
+
+# LLM settings
+llm:
+  provider: "anthropic"
+  model: "claude-haiku-4-5-20251001"
+  temperature: 0.7
+  max_tokens: 4096
+
+# Directory structure
+paths:
+  raw: "./raw"
+  wiki: "./wiki"
+  wiki_concepts: "./wiki/concepts"
+  wiki_meta: "./wiki/_meta"
+  outputs: "./outputs"
+  outputs_qa: "./outputs/qa"
+  outputs_slides: "./outputs/slides"
+  outputs_charts: "./outputs/charts"
+  tools: "./tools"
+
+# Compilation settings
+compile:
+  # How many files to process in parallel (careful with API rate limits)
+  batch_size: 1
+  # Whether to regenerate summaries for all articles or just new ones
+  force_regenerate_summaries: false
+  # Max files to process per run (null = no limit)
+  max_files_per_run: null
+
+# Search settings
+search:
+  # BM25 parameters
+  k1: 1.5  # term frequency saturation parameter
+  b: 0.75  # length normalization parameter
+  top_k: 10  # default number of results to return
+
+# Linting settings
+lint:
+  # How many articles to check for inconsistencies in one batch
+  batch_size_consistency: 3
+
+# Output formatting
+output:
+  # Include source citations in Q&A outputs
+  include_sources: true
+  # Marp slideshow settings
+  slides_theme: "default"
+  # Matplotlib chart settings
+  chart_figsize: [12, 8]
+  chart_dpi: 100
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
