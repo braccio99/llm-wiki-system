@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from lib.claude_client import ClaudeClient
 from lib.wiki_ops import WikiOps
+from lib.wiki_log import log_event
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -156,6 +157,7 @@ def orphans():
     wiki_ops = WikiOps(config["paths"]["wiki"])
     console.print("[bold blue]🔍 Checking for orphaned articles[/bold blue]")
     check_orphans(wiki_ops)
+    log_event("lint", "- check: orphans")
 
 
 @lint.command()
@@ -164,6 +166,7 @@ def summaries():
     wiki_ops = WikiOps(config["paths"]["wiki"])
     console.print("[bold blue]🔍 Checking article summaries[/bold blue]")
     check_missing_summaries(wiki_ops)
+    log_event("lint", "- check: summaries")
 
 
 @lint.command()
@@ -175,6 +178,7 @@ def inconsistencies():
     check_inconsistencies(wiki_ops, client)
     stats = client.get_stats()
     console.print(f"\n[dim]Tokens: {stats['input_tokens']} in, {stats['output_tokens']} out[/dim]")
+    log_event("lint", f"- check: inconsistencies\n- tokens: {stats['input_tokens']} in / {stats['output_tokens']} out")
 
 
 @lint.command()
@@ -186,6 +190,7 @@ def suggest():
     suggest_articles(wiki_ops, client)
     stats = client.get_stats()
     console.print(f"\n[dim]Tokens: {stats['input_tokens']} in, {stats['output_tokens']} out[/dim]")
+    log_event("lint", f"- check: suggest\n- tokens: {stats['input_tokens']} in / {stats['output_tokens']} out")
 
 
 @lint.command(name="all")
@@ -210,6 +215,7 @@ def check_all():
     stats = client.get_stats()
     console.print(f"\n[bold green]✅ Health check complete[/bold green]")
     console.print(f"[dim]Tokens: {stats['input_tokens']} in, {stats['output_tokens']} out[/dim]")
+    log_event("lint", f"- check: all (orphans, summaries, inconsistencies, suggest)\n- tokens: {stats['input_tokens']} in / {stats['output_tokens']} out")
 
 
 if __name__ == "__main__":

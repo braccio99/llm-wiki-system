@@ -65,17 +65,12 @@ class ClaudeClient:
                 }
 
                 if system:
-                    kwargs["system"] = system
-
-                # Add prompt caching control
-                if use_cache:
-                    kwargs["system"] = [
-                        {
-                            "type": "text",
-                            "text": system or "",
-                            "cache_control": {"type": "ephemeral"}
-                        }
-                    ] if system else [{"type": "text", "text": "", "cache_control": {"type": "ephemeral"}}]
+                    if use_cache:
+                        kwargs["system"] = [
+                            {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
+                        ]
+                    else:
+                        kwargs["system"] = system
 
                 response = self.client.messages.create(**kwargs)
 

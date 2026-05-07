@@ -13,7 +13,7 @@ This is a **personal knowledge base system** powered by Claude. The LLM itself m
 ```
 raw/              → Raw source documents (articles, PDFs, etc.)
    ↓
-compile.py        → Ingest raw/ and create wiki articles via Claude
+compile.py        → Ingest raw/ and create or update wiki articles via Claude
    ↓
 wiki/concepts/    → Compiled markdown articles (frontmatter + body)
    ↓
@@ -45,7 +45,7 @@ cp .env.example .env
 
 ```bash
 # Create or download a markdown/text file and put it in raw/
-# For example: raw/my_article.md
+# For example: raw/my-article.md
 
 # Compile it into wiki
 python tools/compile.py --new
@@ -55,7 +55,7 @@ This will:
 - Read all files in `raw/`
 - Send each to Claude for analysis
 - Extract: title, slug, summary, tags, body
-- Create article in `wiki/concepts/`
+- **Create** a new article in `wiki/concepts/`, or **update** an existing one if the concept is already covered
 - Update indexes and backlinks
 
 ### 3. Ask Questions
@@ -110,8 +110,8 @@ created: "2026-04-16T14:30:00"
 updated: "2026-04-16T14:30:00"
 tags: [tag1, tag2]
 summary: "One-line description (max 150 chars)"
-sources: [raw/original_article.md]
-related: [[Related Article 1]], [[Related Article 2]]
+sources: [raw/original-article.md]
+related: [[related-article-1]], [[related-article-2]]
 ---
 
 ## Article Body
@@ -122,9 +122,9 @@ The first paragraph becomes the summary if not specified in frontmatter.
 ```
 
 ### WikiLink Syntax
-- `[[Article Name]]` → Links to another article
+- `[[article-slug]]` → Links to another article
 - Links are bidirectional (backlinks are auto-maintained)
-- See `wiki/_index.md` for a complete index with all articles
+- See `wiki/INDEX.md` for a complete index with all articles
 
 ---
 
@@ -132,11 +132,12 @@ The first paragraph becomes the summary if not specified in frontmatter.
 
 ### Day 1: Ingest Raw Data
 ```bash
-# Download 5 articles about machine learning into raw/
-# (Use Obsidian Web Clipper to get markdown + images)
+# Drop some markdown/text files into raw/
+# (Use Obsidian Web Clipper to get markdown from the web)
 python tools/compile.py --new
-# → Creates 5 articles in wiki/concepts/
-# → Generates wiki/_index.md
+# → Creates articles in wiki/concepts/
+# → Updates existing articles if related content was already present
+# → Generates wiki/INDEX.md
 ```
 
 ### Day 2: Ask Questions
@@ -144,7 +145,6 @@ python tools/compile.py --new
 python tools/query.py "Compare supervised vs unsupervised learning" --save
 
 # Output saved to: outputs/qa/answer_20260416_143000.md
-# → Could file this back into wiki if it's useful
 ```
 
 ### Day 3: Find Gaps
@@ -159,7 +159,7 @@ python tools/lint.py all
 ```bash
 python tools/query.py "Create a mind map of neural network architectures" \
   --format marp --save
-# → Creates slides/ in outputs/
+# → Creates slides in outputs/slides/
 # → View in Obsidian with Marp plugin
 ```
 
@@ -175,7 +175,8 @@ python tools/lint.py all
 ## Configuration
 
 Edit `config.yaml` to change:
-- **LLM model** (default: haiku-4.5, set to opus-4.6 for higher quality)
+- **Wiki identity**: name, description, language
+- **LLM model** (default: haiku-4.5, set to claude-opus-4-7 for higher quality)
 - **Temperature** (0.3 for factual, 0.8 for creative)
 - **Batch sizes** for compilation
 - **Search parameters** (BM25 k1, b, top_k)
@@ -187,17 +188,17 @@ Edit `config.yaml` to change:
 
 ```
 LLM WIKI/
-├── raw/                              # Your source documents
+├── raw/                              # Your source documents (append-only)
 │   └── _index.json                  # Auto-generated tracking of processed files
 │
 ├── wiki/                            # The compiled knowledge base
-│   ├── _index.md                   # Main index of all articles
+│   ├── INDEX.md                    # Main index of all articles
 │   ├── _meta/
 │   │   ├── summaries.json          # Quick lookup of summaries
 │   │   └── backlinks.json          # Graph of article relationships
 │   └── concepts/
-│       ├── machine_learning.md
-│       ├── neural_networks.md
+│       ├── machine-learning.md
+│       ├── neural-networks.md
 │       └── ...
 │
 ├── outputs/                         # Generated content
@@ -206,16 +207,18 @@ LLM WIKI/
 │   └── charts/chart_*.py           # Matplotlib visualization code
 │
 ├── tools/
-│   ├── compile.py                  # Ingest raw/ → wiki/
+│   ├── compile.py                  # Ingest raw/ → wiki/ (create or update)
 │   ├── query.py                    # Q&A against wiki
 │   ├── lint.py                     # Health checks
 │   ├── search.py                   # Search engine
 │   └── lib/
 │       ├── claude_client.py        # LLM API wrapper (with caching)
 │       ├── wiki_ops.py             # Wiki operations
+│       ├── wiki_log.py             # Append-only activity log
 │       └── search_engine.py        # BM25 search
 │
 ├── config.yaml                      # System configuration
+├── AGENTS.md                        # Operational rules for the LLM agent
 ├── requirements.txt                 # Python dependencies
 ├── .env                            # API keys (keep secret!)
 └── CLAUDE.md                       # This file
@@ -253,18 +256,19 @@ answer = client.chat_with_context(
 
 ### Scripting Workflows
 
-Create your own Python scripts in `tools/` that use the library:
-
 ```python
 #!/usr/bin/env python3
 # tools/my_workflow.py
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
 
 from lib import ClaudeClient, WikiOps
 
 wiki = WikiOps()
 client = ClaudeClient()
 
-# Get all articles
 for slug in wiki.list_articles():
     result = wiki.read_article(slug)
     if result:
@@ -276,7 +280,7 @@ for slug in wiki.list_articles():
 
 ## Obsidian Integration
 
-1. **Open folder as vault**: File → Open vault → select `LLM WIKI/` directory
+1. **Open folder as vault**: File → Open vault → select this directory
 2. **Recommended plugins**:
    - **Marp**: View slide presentations (outputs/slides/)
    - **Dataview**: Query wiki metadata dynamically
@@ -306,9 +310,9 @@ python tools/lint.py summaries
 
 ### Use Higher Quality Model for Complex Queries
 ```bash
-# Edit config.yaml: set model to "claude-opus-4-6"
-# Or via environment:
-export LLM_MODEL=claude-opus-4-6
+# Edit config.yaml: set model to "claude-opus-4-7"
+# Or via environment variable:
+export LLM_MODEL=claude-opus-4-7
 python tools/query.py "Complex philosophical question"
 ```
 
@@ -355,9 +359,9 @@ The goal is a living, evolving knowledge base that gets smarter as you use it.
 
 ## Next Steps
 
-1. ✅ Setup complete
-2. Add your first raw document: `raw/my_article.md`
+1. Configure `config.yaml` with your wiki name and domain
+2. Add your first raw document: `raw/my-article.md`
 3. Compile: `python tools/compile.py --new`
-4. Explore: `open wiki/_index.md` or open in Obsidian
+4. Explore: open `wiki/INDEX.md` or open in Obsidian
 5. Ask questions: `python tools/query.py "What do you know?"`
 6. Iterate: lint, suggest, expand, refine

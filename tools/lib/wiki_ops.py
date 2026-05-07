@@ -112,6 +112,32 @@ class WikiOps:
         logger.info(f"Wrote article: {path}")
         return path
 
+    def update_article(self, slug: str, new_body: str, new_sources: List[str], new_tags: List[str]) -> Path:
+        """Merge new content into an existing article, preserving frontmatter."""
+        result = self.read_article(slug)
+        if not result:
+            raise ValueError(f"Article not found: {slug}")
+
+        fm, _ = result
+        fm["updated"] = datetime.now().isoformat(timespec="seconds")
+
+        existing_tags = fm.get("tags", [])
+        if isinstance(existing_tags, str):
+            existing_tags = [t.strip() for t in existing_tags.strip("[]").split(",") if t.strip()]
+        fm["tags"] = list(dict.fromkeys(existing_tags + new_tags))  # dedup, preserve order
+
+        existing_sources = fm.get("sources", [])
+        if isinstance(existing_sources, str):
+            existing_sources = [existing_sources]
+        fm["sources"] = list(dict.fromkeys(existing_sources + new_sources))
+
+        fm["summary"] = new_body.split("\n")[0][:150]
+
+        path = self.get_article_path(slug)
+        path.write_text(self.write_frontmatter(fm, new_body), encoding="utf-8")
+        logger.info(f"Updated article: {path}")
+        return path
+
     def read_article(self, slug: str) -> Optional[Tuple[Dict, str]]:
         """Read article by slug
 

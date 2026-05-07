@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from lib.claude_client import ClaudeClient
 from lib.wiki_ops import WikiOps
 from lib.search_engine import SearchEngine
+from lib.wiki_log import log_event
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -71,25 +72,29 @@ Return ONLY valid JSON array, no explanation."""
               help="Output format")
 @click.option("--save", is_flag=True, help="Save output to file")
 @click.option("--top", type=int, default=5, help="Number of relevant documents to use")
-def query_wiki(query: str, format: str, save: bool, top: int):
+@click.option("--raw", is_flag=True, help="Print answer only, no status messages")
+def query_wiki(query: str, format: str, save: bool, top: int, raw: bool):
     """Ask a question against the wiki
 
     QUERY: Your question
     """
 
-    console.print(f"[bold blue]❓ Wiki Query[/bold blue]")
-    console.print(f"Question: {query}\n")
+    if not raw:
+        console.print(f"[bold blue]❓ Wiki Query[/bold blue]")
+        console.print(f"Question: {query}\n")
 
     # Initialize
     client = ClaudeClient(model=config["llm"]["model"])
     wiki_ops = WikiOps(config["paths"]["wiki"])
 
     # Find relevant documents
-    console.print("[cyan]Finding relevant documents...[/cyan]")
+    if not raw:
+        console.print("[cyan]Finding relevant documents...[/cyan]")
     relevant_slugs = find_relevant_docs(client, wiki_ops, query, top_k=top)
 
     if not relevant_slugs:
-        console.print("[yellow]No relevant documents found[/yellow]")
+        if not raw:
+            console.print("[yellow]No relevant documents found[/yellow]")
         return
 
     # Read relevant documents
@@ -102,10 +107,12 @@ def query_wiki(query: str, format: str, save: bool, top: int):
             context_docs.append(content)
 
     if not context_docs:
-        console.print("[red]Could not read any relevant documents[/red]")
+        if not raw:
+            console.print("[red]Could not read any relevant documents[/red]")
         return
 
-    console.print(f"[cyan]Using {len(context_docs)} documents as context[/cyan]")
+    if not raw:
+        console.print(f"[cyan]Using {len(context_docs)} documents as context[/cyan]")
 
     # Generate answer based on format
     if format == "marp":
@@ -143,11 +150,15 @@ Documents:
 {chr(10).join(context_docs)}"""
 
     # Generate response
-    console.print("[cyan]Generating answer...[/cyan]")
+    if not raw:
+        console.print("[cyan]Generating answer...[/cyan]")
     answer = client.chat(answer_prompt, system=system_prompt, max_tokens=4096, temperature=0.7)
 
-    console.print("\n[bold green]Answer:[/bold green]\n")
-    console.print(answer)
+    if raw:
+        print(answer)
+    else:
+        console.print("\n[bold green]Answer:[/bold green]\n")
+        console.print(answer)
 
     # Save if requested
     if save:
@@ -167,7 +178,16 @@ Documents:
 
     # Print stats
     stats = client.get_stats()
-    console.print(f"\n[dim]Tokens: {stats['input_tokens']} in, {stats['output_tokens']} out[/dim]")
+    if not raw:
+        console.print(f"\n[dim]Tokens: {stats['input_tokens']} in, {stats['output_tokens']} out[/dim]")
+
+    log_event(
+        "query",
+        f"- question: {query}\n"
+        f"- format: {format} (saved={save})\n"
+        f"- context docs: {len(context_docs)} ({', '.join(relevant_slugs)})\n"
+        f"- tokens: {stats['input_tokens']} in / {stats['output_tokens']} out"
+    )
 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ console = Console()
 @click.argument("query")
 @click.option("--top", type=int, default=10, help="Number of results")
 @click.option("--json", is_flag=True, help="Output as JSON")
-def search(query: str, top: int, json_flag: bool):
+def search(query: str, top: int, json: bool):
     """Search wiki articles
 
     QUERY: Search terms
@@ -45,7 +45,7 @@ def search(query: str, top: int, json_flag: bool):
         console.print("[yellow]No results found[/yellow]")
         return
 
-    if json_flag:
+    if json:
         # Output as JSON
         json_results = [
             {"slug": slug, "score": float(score), "snippet": snippet}

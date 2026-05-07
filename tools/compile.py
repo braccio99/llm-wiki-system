@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from lib.claude_client import ClaudeClient
 from lib.wiki_ops import WikiOps
+from lib.wiki_log import log_event
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -67,6 +68,60 @@ def get_new_files(raw_index: dict) -> list:
     return new_files
 
 
+def find_matching_article(client: ClaudeClient, wiki_ops: WikiOps, new_data: dict) -> str | None:
+    """Return slug of existing article that covers the same concept, or None."""
+    summaries = wiki_ops.load_summaries()
+    if not summaries:
+        return None
+
+    # Exact slug hit — no API call needed
+    if new_data.get("slug") in summaries:
+        return new_data["slug"]
+
+    index_text = "\n".join(
+        f"- {slug}: {summary}" for slug, summary in list(summaries.items())[:60]
+    )
+
+    prompt = f"""Does this new content overlap significantly with any existing wiki article?
+
+New content:
+- Title: {new_data.get('title')}
+- Summary: {new_data.get('summary')}
+- Tags: {new_data.get('tags')}
+
+Existing articles:
+{index_text}
+
+If there is significant conceptual overlap with one existing article, return ONLY its slug.
+If the content is distinct enough to deserve a new article, return "new".
+Return ONLY the slug or the word "new". No explanation."""
+
+    response = client.chat(prompt, temperature=0.1, max_tokens=50).strip().strip('"').strip("'")
+    return response if response != "new" and response in summaries else None
+
+
+def merge_article_content(client: ClaudeClient, existing_body: str, new_body: str, title: str) -> str:
+    """Use Claude to merge new information into an existing article body."""
+    prompt = f"""You are updating the wiki article "{title}" with new information.
+
+Existing article body:
+{existing_body}
+
+New information to integrate:
+{new_body}
+
+Rules:
+1. Preserve all existing information that remains accurate.
+2. Add new facts, data points, or perspectives from the new source.
+3. If there are contradictions, keep the more detailed or recent version.
+4. Expand or update existing sections — do not just append a new section at the end.
+5. Keep the article concise and well-structured with markdown headers.
+
+Return ONLY the updated article body. No frontmatter, no title heading."""
+
+    return client.chat(prompt, temperature=0.3, max_tokens=2000)
+
+
 def extract_article_data(client: ClaudeClient, file_path: Path) -> dict:
     """Use Claude to extract article data from raw document"""
     content = file_path.read_text(encoding="utf-8")
@@ -89,7 +144,7 @@ Return a JSON object with:
 }}
 
 Slug must be lowercase kebab-case (hyphens, no underscores).
-Type must be one of: concept, topic, condition, treatment, person, paper, guideline.
+Type must be one of: concept, topic, person, paper, guideline.
 Return ONLY valid JSON, no markdown code blocks."""
 
     response = client.chat(prompt, temperature=0.7, max_tokens=1000)
@@ -160,16 +215,32 @@ def compile_wiki(all: bool, new: bool, max_files: int):
                     progress.update(task, advance=1)
                     continue
 
-                # Write article to wiki
-                article_path = wiki_ops.write_article(
-                    slug=data.get("slug", file_path.stem),
-                    title=data.get("title", "Untitled"),
-                    body=data.get("body", ""),
-                    tags=data.get("tags", []),
-                    sources=[f"raw/{rel_path}"],
-                    related=[],
-                    article_type=data.get("type", "concept"),
-                )
+                match = find_matching_article(client, wiki_ops, data)
+
+                if match:
+                    # Merge into existing article
+                    existing = wiki_ops.read_article(match)
+                    existing_body = existing[1] if existing else ""
+                    merged_body = merge_article_content(client, existing_body, data.get("body", ""), data.get("title", match))
+                    article_path = wiki_ops.update_article(
+                        slug=match,
+                        new_body=merged_body,
+                        new_sources=[f"raw/{rel_path}"],
+                        new_tags=data.get("tags", []),
+                    )
+                    console.print(f"  [blue]↺ Updated:[/blue] {match}")
+                else:
+                    # Create new article
+                    article_path = wiki_ops.write_article(
+                        slug=data.get("slug", file_path.stem),
+                        title=data.get("title", "Untitled"),
+                        body=data.get("body", ""),
+                        tags=data.get("tags", []),
+                        sources=[f"raw/{rel_path}"],
+                        related=[],
+                        article_type=data.get("type", "concept"),
+                    )
+                    console.print(f"  [green]✚ Created:[/green] {data.get('slug', file_path.stem)}")
 
                 # Update raw index
                 raw_index[rel_path] = {"mtime": mtime, "article": str(article_path)}
@@ -197,6 +268,12 @@ def compile_wiki(all: bool, new: bool, max_files: int):
     console.print(f"  Tokens used: {stats['input_tokens']} input, {stats['output_tokens']} output")
     if stats['cache_read_input_tokens'] > 0:
         console.print(f"  Cache hits: {stats['cache_read_input_tokens']} tokens read from cache")
+
+    log_event(
+        "ingest",
+        f"- files processed: {processed}/{len(files_to_process)}\n"
+        f"- tokens: {stats['input_tokens']} in / {stats['output_tokens']} out"
+    )
 
 
 if __name__ == "__main__":

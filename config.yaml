@@ -5,7 +5,7 @@ wiki:
   name: "My Wiki"
   description: "Personal knowledge base"
   language: "italian"   # "italian" | "english" — affects stopwords and LLM prompts
-  article_types: [concept, topic, condition, treatment, person, paper, guideline]
+  article_types: [concept, topic, person, paper, guideline]
 
 # LLM settings
 llm:

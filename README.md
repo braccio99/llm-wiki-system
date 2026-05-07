@@ -1,6 +1,6 @@
 # LLM Wiki
 
-Sistema di knowledge base personale in Markdown, scritto e mantenuto dall'LLM a partire da fonti grezze fornite dall'utente.
+Sistema generale di knowledge base personale in Markdown, scritto e mantenuto dall'LLM a partire da fonti grezze fornite dall'utente. Adatto a qualunque dominio (studio, ricerca, appunti tecnici, divulgazione, ecc.).
 
 **Principio**: tu depositi le fonti in `raw/`, l'LLM compila il wiki, tu fai le domande.
 
@@ -38,11 +38,7 @@ raw/              ← Le tue fonti (APPEND-ONLY, non modificare mai)
 wiki/             ← Il wiki compilato (dominio esclusivo dell'LLM)
   INDEX.md        ← Punto d'ingresso — aggiornato ad ogni compilazione
   concepts/       ← Articoli generati
-
-outputs/          ← Risposte a query (effimero)
-  qa/             ← Risposte in Markdown
-  slides/         ← Presentazioni Marp
-  charts/         ← Codice matplotlib
+  entities/       ← Schede di entità (persone, organizzazioni, luoghi, ecc.)
 ```
 
 ---
@@ -57,9 +53,6 @@ python tools/compile.py --new
 
 # Ricompila tutto
 python tools/compile.py --all
-
-# Limita il numero di file per sessione
-python tools/compile.py --new --max-files 10
 ```
 
 Ogni file processato genera un articolo in `wiki/concepts/` con frontmatter YAML, tags, backlinks e aggiorna `wiki/INDEX.md`.
