@@ -1,156 +1,194 @@
-# LLM Wiki
+# LLM Wiki System
 
-Sistema generale di knowledge base personale in Markdown, scritto e mantenuto dall'LLM a partire da fonti grezze fornite dall'utente. Adatto a qualunque dominio (studio, ricerca, appunti tecnici, divulgazione, ecc.).
+A personal knowledge base powered by Claude. Drop raw documents in, ask questions, get a structured and interlinked wiki maintained by the LLM.
 
-**Principio**: tu depositi le fonti in `raw/`, l'LLM compila il wiki, tu fai le domande.
+**Core principle**: you provide the sources in `raw/`, the LLM compiles and maintains the wiki, you ask the questions.
 
 ---
 
-## Setup (una tantum)
+## Requirements
+
+- Python 3.10+
+- An [Anthropic API key](https://console.anthropic.com/)
+
+---
+
+## Installation
 
 ```bash
+# 1. Clone the repo
+git clone https://github.com/braccio99/llm-wiki-system.git
+cd llm-wiki-system
+
+# 2. Create and activate a virtual environment (recommended)
+python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # macOS/Linux
+
+# 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Set up your API key
 cp .env.example .env
-# Apri .env e inserisci la tua ANTHROPIC_API_KEY
+# Open .env and add your ANTHROPIC_API_KEY
 ```
 
-Configura il tuo wiki in `config.yaml`:
+---
+
+## Configuration
+
+Edit `config.yaml` to set up your wiki:
+
 ```yaml
 wiki:
-  name: "Nome del tuo wiki"
-  description: "Descrizione del dominio"
-  language: "italian"   # oppure "english"
+  name: "My Wiki"
+  description: "What this wiki is about"
+  language: "english"   # or "italian"
 ```
 
 ---
 
-## Struttura directory
+## Usage
+
+### 1. Add source documents
+
+Drop any `.md` or `.txt` files into `raw/` (or its subdirectories):
 
 ```
-raw/              ← Le tue fonti (APPEND-ONLY, non modificare mai)
-  papers/         ← PDF di articoli scientifici
-  web/            ← .md da Obsidian Web Clipper
-  books/          ← Estratti da libri
-  notes/          ← Appunti personali
-  images/         ← Immagini, figure, schemi
-  datasets/       ← Dati strutturati
-
-wiki/             ← Il wiki compilato (dominio esclusivo dell'LLM)
-  INDEX.md        ← Punto d'ingresso — aggiornato ad ogni compilazione
-  concepts/       ← Articoli generati
-  entities/       ← Schede di entità (persone, organizzazioni, luoghi, ecc.)
+raw/
+  papers/     ← research papers
+  web/        ← markdown from Obsidian Web Clipper
+  books/      ← book excerpts
+  notes/      ← personal notes
 ```
 
----
-
-## Comandi
-
-### 1. Compilare le fonti in `raw/`
+### 2. Compile into wiki
 
 ```bash
-# Compila solo i file nuovi o modificati
+# Process only new/modified files
 python tools/compile.py --new
 
-# Ricompila tutto
+# Reprocess everything
 python tools/compile.py --all
 ```
 
-Ogni file processato genera un articolo in `wiki/concepts/` con frontmatter YAML, tags, backlinks e aggiorna `wiki/INDEX.md`.
+Each file generates an article in `wiki/concepts/` with YAML frontmatter, tags, and backlinks.
 
-### 2. Fare domande al wiki
+### 3. Ask questions
 
 ```bash
-# Risposta in Markdown
-python tools/query.py "Qual è la differenza tra X e Y?"
+# Plain answer
+python tools/query.py "What is the difference between X and Y?"
 
-# Genera presentazione Marp
-python tools/query.py "Spiega il concetto Z" --format marp --save
+# Save output
+python tools/query.py "Explain concept Z" --save
 
-# Genera codice matplotlib
-python tools/query.py "Visualizza la relazione tra A e B" --format chart --save
+# Generate Marp slides
+python tools/query.py "Explain concept Z" --format marp --save
 
-# Usa più documenti come contesto
-python tools/query.py "Domanda" --top 10
+# Generate matplotlib chart
+python tools/query.py "Visualize relationships between A and B" --format chart --save
+
+# Use more context documents
+python tools/query.py "Complex question" --top 10
 ```
 
-### 3. Cercare nel wiki
+### 4. Search
 
 ```bash
-python tools/search.py "parola chiave"
+python tools/search.py "keyword"
 
-# Output JSON (per scripting)
-python tools/search.py "parola chiave" --json
+# JSON output (for scripting)
+python tools/search.py "keyword" --json
 ```
 
-### 4. Health check del wiki
+### 5. Health checks
 
 ```bash
-# Tutti i controlli
-python tools/lint.py all
-
-# Solo articoli orfani (nessun backlink)
-python tools/lint.py orphans
-
-# Controlla summary mancanti
-python tools/lint.py summaries
-
-# Cerca contraddizioni tra articoli correlati
-python tools/lint.py inconsistencies
-
-# Suggerisce nuovi articoli da scrivere
-python tools/lint.py suggest
+python tools/lint.py all              # run all checks
+python tools/lint.py orphans          # articles with no backlinks
+python tools/lint.py summaries        # missing summaries
+python tools/lint.py inconsistencies  # contradictions between articles
+python tools/lint.py suggest          # suggest new articles to write
 ```
 
 ---
 
-## Workflow tipico
+## Dashboard
+
+A local web UI to manage the wiki without using the terminal.
 
 ```bash
-# Deposita fonti in raw/ (PDF, .md da web clipper, appunti)
-# poi:
+cd dashboard
+pip install -r requirements.txt
+python app.py
+```
 
-python tools/compile.py --new
-# → Crea/aggiorna articoli in wiki/concepts/
-# → Aggiorna wiki/INDEX.md
+Open `http://127.0.0.1:8000` in your browser.
 
-python tools/query.py "Domanda complessa sul dominio" --save
-# → Risposta con citazioni agli articoli wiki salvata in outputs/qa/
+Features: upload files, compile, query, search, lint, chat with the wiki.
 
-python tools/lint.py all
-# → Trova gap, articoli orfani, suggerisce nuovi topic
+---
+
+## Typical workflow
+
+```bash
+# Drop sources into raw/
+python tools/compile.py --new       # → creates/updates wiki/concepts/
+python tools/query.py "Your question" --save  # → saves answer to outputs/qa/
+python tools/lint.py all            # → finds gaps, orphans, suggests new topics
 ```
 
 ---
 
-## Aprire in Obsidian
+## Directory structure
 
-1. File → Open vault → seleziona questa directory
-2. Plugin consigliati: **Marp** (per le slide), **Dataview**, **Graph View**
-3. `wiki/INDEX.md` è il punto d'ingresso; i `[[WikiLink]]` navigano tra articoli
+```
+raw/              ← Your source documents (append-only)
+wiki/
+  INDEX.md        ← Master index, auto-updated on every compile
+  concepts/       ← Generated articles
+  _meta/          ← Backlinks and summaries index
+outputs/          ← Generated Q&A, slides, charts
+tools/            ← CLI tools (compile, query, lint, search)
+dashboard/        ← Web UI
+config.yaml       ← System configuration
+.env              ← API key (never commit this)
+AGENTS.md         ← Operational rules for the LLM agent
+```
 
 ---
 
-## File critici
+## Obsidian integration
 
-| File | Scopo |
-|------|-------|
-| `AGENTS.md` | Regole operative per l'LLM — leggere prima di ogni sessione |
-| `config.yaml` | Configurazione del sistema (modello, lingua, percorsi) |
-| `wiki/INDEX.md` | Indice master del wiki, aggiornato automaticamente |
-| `.env` | API key Anthropic (non committare mai) |
+1. File → Open vault → select this directory
+2. Recommended plugins: **Marp** (slides), **Dataview**, **Graph View**
+3. `wiki/INDEX.md` is the entry point; `[[WikiLinks]]` navigate between articles
 
 ---
 
-## Monitorare i token
+## Key files
 
-Ogni comando stampa le statistiche token a fine esecuzione:
-- `cache_read_input_tokens` — token letti dalla cache (non pagati)
-- Alto valore di cache hit = prompt caching funzionante
+| File | Purpose |
+|------|---------|
+| `AGENTS.md` | Operational rules for the LLM — read before every session |
+| `config.yaml` | System configuration (model, language, paths) |
+| `wiki/INDEX.md` | Master index, auto-updated |
+| `.env` | Anthropic API key (never commit) |
 
-Per query complesse, usa un modello più potente:
+---
+
+## Token monitoring
+
+Every command prints token stats at the end:
+- `cache_read_input_tokens` — tokens served from cache (not billed)
+
+To use a more powerful model for complex queries:
+
 ```bash
 # In config.yaml
 model: "claude-opus-4-7"
-# oppure via env
-LLM_MODEL=claude-opus-4-7 python tools/query.py "domanda"
+
+# Or via environment variable
+LLM_MODEL=claude-opus-4-7 python tools/query.py "Complex question"
 ```
