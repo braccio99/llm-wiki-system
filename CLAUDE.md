@@ -1,10 +1,50 @@
 # LLM Wiki System - Claude Code Instructions
 
-This is a **personal knowledge base system** powered by Claude. The LLM itself maintains and operates the wiki. Your role is primarily to:
+This is a **personal knowledge base system** powered by any LLM (local or cloud). The LLM maintains and operates the wiki. Your role is primarily to:
 1. Feed in raw documents (via Obsidian Web Clipper or direct uploads)
 2. Ask questions against the wiki
 3. Request linting/health checks
 4. Iterate and expand the knowledge base
+
+---
+
+## Supported LLM Providers
+
+Set `provider` in `config.yaml` → `llm.provider`:
+
+| Provider | Value | Needs key? | Default base_url |
+|---|---|---|---|
+| Anthropic Claude | `anthropic` | Yes — `ANTHROPIC_API_KEY` | (SDK default) |
+| Ollama (local) | `ollama` | No | `http://localhost:11434/v1` |
+| LM Studio (local) | `lmstudio` | No | `http://localhost:1234/v1` |
+| vLLM (local/remote) | `vllm` | No locally | `http://localhost:8000/v1` |
+| OpenAI | `openai` | Yes — `OPENAI_API_KEY` | `https://api.openai.com/v1` |
+| Groq, Together, etc. | `openai-compatible` | Yes — `LLM_API_KEY` | set `llm.base_url` |
+
+Quick switch examples in `config.yaml`:
+```yaml
+# Local Ollama
+llm:
+  provider: "ollama"
+  model: "llama3.2"
+
+# LM Studio (uses whatever model is loaded)
+llm:
+  provider: "lmstudio"
+  model: "local-model"
+
+# vLLM
+llm:
+  provider: "vllm"
+  model: "mistralai/Mistral-7B-Instruct-v0.2"
+
+# Groq
+llm:
+  provider: "openai-compatible"
+  model: "llama-3.3-70b-versatile"
+  base_url: "https://api.groq.com/openai/v1"
+  api_key: null  # reads LLM_API_KEY from .env
+```
 
 ---
 

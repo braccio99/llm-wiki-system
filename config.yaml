@@ -8,11 +8,41 @@ wiki:
   article_types: [concept, topic, person, paper, guideline]
 
 # LLM settings
+# ─────────────────────────────────────────────────────────
+# provider options:
+#   anthropic        → Claude API (prompt caching included). Needs ANTHROPIC_API_KEY.
+#   ollama           → Local Ollama  (auto: http://localhost:11434). No key needed.
+#   lmstudio         → Local LM Studio (auto: http://localhost:1234). No key needed.
+#   vllm             → Local/remote vLLM (auto: http://localhost:8000). No key needed locally.
+#   openai           → OpenAI API. Needs OPENAI_API_KEY or LLM_API_KEY.
+#   openai-compatible → Any OpenAI-compatible endpoint. Set base_url below.
+#
+# model examples per provider:
+#   anthropic:        claude-haiku-4-5-20251001 | claude-sonnet-4-6 | claude-opus-4-7
+#   ollama:           llama3.2 | mistral | phi4 | gemma3 | qwen2.5
+#   lmstudio:         use the model name shown in LM Studio UI (e.g. "lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF")
+#   vllm:             model name as loaded in vLLM server
+#   openai:           gpt-4o | gpt-4o-mini | o3-mini
+#   openai-compatible: depends on the provider
+# ─────────────────────────────────────────────────────────
 llm:
   provider: "anthropic"
   model: "claude-haiku-4-5-20251001"
   temperature: 0.7
   max_tokens: 4096
+
+  # base_url: leave null to use the provider default, or set explicitly.
+  # Examples:
+  #   base_url: "http://localhost:11434/v1"   # Ollama (custom port)
+  #   base_url: "http://localhost:1234/v1"    # LM Studio
+  #   base_url: "http://localhost:8000/v1"    # vLLM
+  #   base_url: "https://api.groq.com/openai/v1"   # Groq
+  #   base_url: "https://api.together.xyz/v1"       # Together AI
+  base_url: null
+
+  # api_key: leave null to read from env (ANTHROPIC_API_KEY / OPENAI_API_KEY / LLM_API_KEY).
+  # Local providers (Ollama, LM Studio) don't need a real key.
+  api_key: null
 
 # Directory structure
 paths:

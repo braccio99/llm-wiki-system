@@ -13,7 +13,7 @@ import yaml
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from lib.claude_client import ClaudeClient
+from lib.llm_client import get_llm_client
 from lib.wiki_ops import WikiOps
 from lib.search_engine import SearchEngine
 from lib.wiki_log import log_event
@@ -29,7 +29,7 @@ with open(config_path) as f:
     config = yaml.safe_load(f)
 
 
-def find_relevant_docs(client: ClaudeClient, wiki_ops: WikiOps, query: str, top_k: int = 5) -> list:
+def find_relevant_docs(client, wiki_ops: WikiOps, query: str, top_k: int = 5) -> list:
     """Use Claude to identify relevant documents from wiki index"""
     summaries = wiki_ops.load_summaries()
     if not summaries:
@@ -84,7 +84,7 @@ def query_wiki(query: str, format: str, save: bool, top: int, raw: bool):
         console.print(f"Question: {query}\n")
 
     # Initialize
-    client = ClaudeClient(model=config["llm"]["model"])
+    client = get_llm_client(config)
     wiki_ops = WikiOps(config["paths"]["wiki"])
 
     # Find relevant documents

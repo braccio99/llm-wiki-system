@@ -65,12 +65,14 @@ def wiki_model(wiki: Path) -> str:
 
 
 def wiki_client(wiki: Path):
-    import anthropic
-    env = wiki_env(wiki)
-    key = env.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise HTTPException(400, "ANTHROPIC_API_KEY non trovata nel wiki")
-    return anthropic.Anthropic(api_key=key)
+    """Return the right LLM client based on config.yaml provider setting."""
+    wiki_env(wiki)  # load wiki .env into environment before building client
+    cfg = yaml.safe_load((wiki / "config.yaml").read_text(encoding="utf-8"))
+    tools_path = str(wiki / "tools")
+    if tools_path not in sys.path:
+        sys.path.insert(0, tools_path)
+    from lib.llm_client import get_llm_client
+    return get_llm_client(cfg)
 
 
 async def search_slugs(wiki: Path, query: str, top: int = 5) -> list[str]:
@@ -400,13 +402,8 @@ async def chat(body: ChatRequest):
         system += "Il wiki è vuoto o non contiene articoli rilevanti. Rispondi con le tue conoscenze generali."
 
     client = wiki_client(wiki)
-    response = client.messages.create(
-        model=wiki_model(wiki),
-        max_tokens=4096,
-        system=system,
-        messages=body.messages,
-    )
-    return {"answer": response.content[0].text, "context_slugs": slugs}
+    answer = client.chat(last_user, system=system, max_tokens=4096)
+    return {"answer": answer, "context_slugs": slugs}
 
 
 # ── API: Save to wiki ──────────────────────────────────────────────────────────

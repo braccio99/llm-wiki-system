@@ -15,7 +15,7 @@ import yaml
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from lib.claude_client import ClaudeClient
+from lib.llm_client import get_llm_client
 from lib.wiki_ops import WikiOps
 from lib.wiki_log import log_event
 
@@ -68,7 +68,7 @@ def get_new_files(raw_index: dict) -> list:
     return new_files
 
 
-def find_matching_article(client: ClaudeClient, wiki_ops: WikiOps, new_data: dict) -> str | None:
+def find_matching_article(client, wiki_ops: WikiOps, new_data: dict) -> str | None:
     """Return slug of existing article that covers the same concept, or None."""
     summaries = wiki_ops.load_summaries()
     if not summaries:
@@ -100,7 +100,7 @@ Return ONLY the slug or the word "new". No explanation."""
     return response if response != "new" and response in summaries else None
 
 
-def merge_article_content(client: ClaudeClient, existing_body: str, new_body: str, title: str) -> str:
+def merge_article_content(client, existing_body: str, new_body: str, title: str) -> str:
     """Use Claude to merge new information into an existing article body."""
     prompt = f"""You are updating the wiki article "{title}" with new information.
 
@@ -122,7 +122,7 @@ Return ONLY the updated article body. No frontmatter, no title heading."""
     return client.chat(prompt, temperature=0.3, max_tokens=2000)
 
 
-def extract_article_data(client: ClaudeClient, file_path: Path) -> dict:
+def extract_article_data(client, file_path: Path) -> dict:
     """Use Claude to extract article data from raw document"""
     content = file_path.read_text(encoding="utf-8")
 
@@ -177,7 +177,7 @@ def compile_wiki(all: bool, new: bool, max_files: int):
     console.print("[bold blue]🔨 LLM Wiki Compiler[/bold blue]")
 
     # Initialize
-    client = ClaudeClient(model=config["llm"]["model"])
+    client = get_llm_client(config)
     wiki_ops = WikiOps(config["paths"]["wiki"])
 
     # Get files to process

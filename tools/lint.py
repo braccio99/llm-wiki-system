@@ -12,7 +12,7 @@ import yaml
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from lib.claude_client import ClaudeClient
+from lib.llm_client import get_llm_client
 from lib.wiki_ops import WikiOps
 from lib.wiki_log import log_event
 
@@ -64,7 +64,7 @@ def check_missing_summaries(wiki_ops: WikiOps):
         console.print("[green]✅ All articles have summaries[/green]")
 
 
-def check_inconsistencies(wiki_ops: WikiOps, client: ClaudeClient):
+def check_inconsistencies(wiki_ops: WikiOps, client):
     """Use Claude to find contradictions in related articles"""
     articles = wiki_ops.list_articles()
 
@@ -117,7 +117,7 @@ If you find issues, list them briefly. Otherwise, say "No issues found"."""
         console.print("[dim]No related articles to check[/dim]")
 
 
-def suggest_articles(wiki_ops: WikiOps, client: ClaudeClient):
+def suggest_articles(wiki_ops: WikiOps, client):
     """Suggest new article topics based on gaps in wiki"""
     summaries = wiki_ops.load_summaries()
 
@@ -173,7 +173,7 @@ def summaries():
 def inconsistencies():
     """Check for inconsistencies in related articles"""
     console.print("[bold blue]🔍 Checking for inconsistencies[/bold blue]")
-    client = ClaudeClient(model=config["llm"]["model"])
+    client = get_llm_client(config)
     wiki_ops = WikiOps(config["paths"]["wiki"])
     check_inconsistencies(wiki_ops, client)
     stats = client.get_stats()
@@ -185,7 +185,7 @@ def inconsistencies():
 def suggest():
     """Suggest new article topics"""
     console.print("[bold blue]💡 Suggesting new articles[/bold blue]")
-    client = ClaudeClient(model=config["llm"]["model"])
+    client = get_llm_client(config)
     wiki_ops = WikiOps(config["paths"]["wiki"])
     suggest_articles(wiki_ops, client)
     stats = client.get_stats()
@@ -197,7 +197,7 @@ def suggest():
 def check_all():
     """Run all checks"""
     console.print("[bold blue]🔍 Running all health checks[/bold blue]\n")
-    client = ClaudeClient(model=config["llm"]["model"])
+    client = get_llm_client(config)
     wiki_ops = WikiOps(config["paths"]["wiki"])
 
     console.print("[cyan]1. Checking for orphaned articles...[/cyan]")
